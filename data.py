@@ -7,6 +7,7 @@ from PIL import Image
 from pycocotools.coco import COCO
 import numpy as np
 import json as jsonmod
+from pathlib import Path
 
 
 def get_paths(path, name='coco', use_restval=False):
@@ -190,6 +191,49 @@ class FlickrDataset(data.Dataset):
         return len(self.ids)
 
 
+class FashionDataset(data.Dataset):
+    """
+    Dataset loader Kaggle Fashion dataset with pre-generated captions.
+    """
+
+    def __init__(self, root, split, vocab, transform=None, caps_per_img=3):
+        self.root = root
+        self.vocab = vocab
+        self.split = split
+        self.transform = transform
+        self.caps_per_img = caps_per_img
+        self.captions = jsonmod.load(open(Path(root)/f"{split}_caps.json", 'r'))
+        self.dataset = [f.name for f in (Path(root)/"images").glob("*") if f.name in self.captions]
+        
+
+    def __getitem__(self, index):
+        """This function returns a tuple that is further passed to collate_fn
+        """
+        vocab = self.vocab
+        root = self.root
+        img_id = index // self.caps_per_img
+        path = self.dataset[img_id]
+        caption = self.captions[path][index % self.caps_per_img]
+
+
+        image = Image.open(os.path.join(root,"images", path)).convert('RGB')
+        if self.transform is not None:
+            image = self.transform(image)
+
+        # Convert caption (string) to word ids.
+        tokens = nltk.tokenize.word_tokenize(
+            str(caption).lower())
+        caption = []
+        caption.append(vocab('<start>'))
+        caption.extend([vocab(token) for token in tokens])
+        caption.append(vocab('<end>'))
+        target = torch.Tensor(caption)
+        return image, target, index, img_id
+
+    def __len__(self):
+        return len(self.dataset * self.caps_per_img)
+
+
 class PrecompDataset(data.Dataset):
     """
     Load precomputed captions and image features
@@ -283,7 +327,11 @@ def get_loader_single(data_name, split, root, json, vocab, transform,
                                 json=json,
                                 vocab=vocab,
                                 transform=transform)
-
+    elif 'fashion' in data_name:
+        dataset = FashionDataset(root=root,
+                                split=split,
+                                vocab=vocab,
+                                transform=transform)
     # Data loader
     data_loader = torch.utils.data.DataLoader(dataset=dataset,
                                               batch_size=batch_size,
@@ -312,8 +360,12 @@ def get_transform(data_name, split_name, opt):
                                       std=[0.229, 0.224, 0.225])
     t_list = []
     if split_name == 'train':
-        t_list = [transforms.RandomResizedCrop(opt.crop_size),
-                  transforms.RandomHorizontalFlip()]
+        if data_name == "fashion":
+            # for fashion images avoid random crop and flip
+            t_list = [transforms.Resize(256), transforms.CenterCrop(224)]
+        else:
+            t_list = [transforms.RandomResizedCrop(opt.crop_size),
+                    transforms.RandomHorizontalFlip()]
     elif split_name == 'val':
         t_list = [transforms.Resize(256), transforms.CenterCrop(224)]
     elif split_name == 'test':
@@ -331,6 +383,24 @@ def get_loaders(data_name, vocab, crop_size, batch_size, workers, opt):
                                           batch_size, True, workers)
         val_loader = get_precomp_loader(dpath, 'dev', vocab, opt,
                                         batch_size, False, workers)
+    elif opt.data_name == "fashion":
+        transform = get_transform(data_name, 'train', opt)
+        train_loader = get_loader_single(opt.data_name, 'train',
+                                         dpath,
+                                         os.path.join(dpath, "train_caps.json"),
+                                         vocab, transform, ids=None,
+                                         batch_size=batch_size, shuffle=True,
+                                         num_workers=workers,
+                                         collate_fn=collate_fn)
+
+        transform = get_transform(data_name, 'val', opt)
+        val_loader = get_loader_single(opt.data_name, 'dev',
+                                         dpath,
+                                         os.path.join(dpath, "dev_caps.json"),
+                                         vocab, transform, ids=None,
+                                         batch_size=batch_size, shuffle=True,
+                                         num_workers=workers,
+                                         collate_fn=collate_fn)
     else:
         # Build Dataset Loader
         roots, ids = get_paths(dpath, data_name, opt.use_restval)
@@ -362,6 +432,15 @@ def get_test_loader(split_name, data_name, vocab, crop_size, batch_size,
     if opt.data_name.endswith('_precomp'):
         test_loader = get_precomp_loader(dpath, split_name, vocab, opt,
                                          batch_size, False, workers)
+    elif opt.data_name == "fashion":
+        transform = get_transform(data_name, split_name, opt)
+        test_loader = get_loader_single(opt.data_name, split_name,
+                                         dpath,
+                                         os.path.join(dpath, "test_caps.json"),
+                                         vocab, transform, ids=None,
+                                         batch_size=batch_size, shuffle=True,
+                                         num_workers=workers,
+                                         collate_fn=collate_fn)
     else:
         # Build Dataset Loader
         roots, ids = get_paths(dpath, data_name, opt.use_restval)
