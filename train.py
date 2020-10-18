@@ -181,7 +181,8 @@ def train(opt, train_loader, model, epoch, val_loader):
 
         # validate at every val_step
         if model.Eiters % opt.val_step == 0:
-            validate(opt, val_loader, model)
+            # TODO: Fix issues with validation in eval mode
+            # validate(opt, val_loader, model)
 
 
 def validate(opt, val_loader, model):

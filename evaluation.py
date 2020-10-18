@@ -126,7 +126,7 @@ def encode_data(model, data_loader, log_step=10, logging=print, on_gpu=False):
     return img_embs, cap_embs
 
 
-def evalrank(model_path, data_path=None, vocab_path=None, split='dev', fold5=False, on_gpu=False):
+def evalrank(model_path, data_path=None, vocab_path=None, data_name= None, split='dev', fold5=False, on_gpu=False):
     """
     Evaluate a trained model on either dev or test. If `fold5=True`, 5 fold
     cross-validation is done (only for MSCOCO). Otherwise, the full data is
@@ -141,6 +141,9 @@ def evalrank(model_path, data_path=None, vocab_path=None, split='dev', fold5=Fal
 
     if vocab_path is not None:
         opt.vocab_path = vocab_path
+
+    if data_name:
+        opt.data_name = data_name
 
     # load vocabulary used by the model
     with open(os.path.join(opt.vocab_path,
