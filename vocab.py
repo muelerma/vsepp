@@ -16,6 +16,7 @@ annotations = {
     'f30k_precomp': ['train_caps.txt', 'dev_caps.txt'],
     'f8k': ['dataset_flickr8k.json'],
     'f30k': ['dataset_flickr30k.json'],
+    'fashion': ['train_caps.txt', 'dev_caps.txt']
 }
 
 
