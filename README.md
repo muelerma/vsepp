@@ -1,3 +1,24 @@
+# Fashion branch
+
+Use VSE++ for fashion product search.
+
+Data from https://www.kaggle.com/paramaggarwal/fashion-product-images-dataset
+
+To replicate
+1) Download Kaggle dataset and extract images into `data/fashion/images` folder
+2) Use `preproc_fashion.py` to create captions and vocab
+3) Train via `python train.py --data ./data --data_name fashion [...]`
+4) Use `inference.py` to make predictions on (unseen) data  
+
+<br/>
+
+* Python 3.8.5
+* PyTorch 1.6
+* NumPy 1.19.2
+* torchvision 0.7.0
+
+<br/>
+
 # Improving Visual-Semantic Embeddings with Hard Negatives
 
 Code for the image-caption retrieval methods from
